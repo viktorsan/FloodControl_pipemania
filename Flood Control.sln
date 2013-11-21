@@ -1,0 +1,24 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Visual C# Express 2010
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Flood Control", "Flood Control\Flood Control\Flood Control.csproj", "{12AC8220-D7F1-4898-9587-3CC641966C0A}"
+EndProject
+Project("{96E2B04D-8817-42C6-938A-82C39BA4D311}") = "Flood ControlContent", "Flood Control\Flood ControlContent\Flood ControlContent.contentproj", "{E5DF9E91-D6EA-4BC7-A639-B5E26C547927}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x86 = Debug|x86
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{12AC8220-D7F1-4898-9587-3CC641966C0A}.Debug|x86.ActiveCfg = Debug|x86
+		{12AC8220-D7F1-4898-9587-3CC641966C0A}.Debug|x86.Build.0 = Debug|x86
+		{12AC8220-D7F1-4898-9587-3CC641966C0A}.Release|x86.ActiveCfg = Release|x86
+		{12AC8220-D7F1-4898-9587-3CC641966C0A}.Release|x86.Build.0 = Release|x86
+		{E5DF9E91-D6EA-4BC7-A639-B5E26C547927}.Debug|x86.ActiveCfg = Debug|x86
+		{E5DF9E91-D6EA-4BC7-A639-B5E26C547927}.Release|x86.ActiveCfg = Release|x86
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
