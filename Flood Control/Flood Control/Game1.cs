@@ -21,19 +21,44 @@ namespace Flood_Control
         Texture2D playingPieces;
         Texture2D backgroundScreen;
         Texture2D titleScreen;
+        SpriteFont pericles36Font;
 
         GameBoard gameBoard;
         Vector2 gameBoardDisplayOrigin = new Vector2(70, 89);
+        Vector2 scorePosition = new Vector2(605, 215);
+        Vector2 gameOverLocation = new Vector2(200, 260);
+        Vector2 levelTextPosition = new Vector2(512, 215);
+
+        Queue<ScoreZoom> ScoreZooms = new Queue<ScoreZoom>();
 
         int playerScore = 0;
 
-        enum GameStates { TitleScreen, Playing };
+        enum GameStates { TitleScreen, Playing, GameOver };
         GameStates gameState = GameStates.TitleScreen;
 
         Rectangle EmptyPiece = new Rectangle(1, 247, 40, 40);
 
         const float MinTimeSinceLastInput = 0.25f;
         float timeSinceLastInput = 0.0f;
+        float gameOverTimer;
+
+        const float MaxFloodCounter = 100.0f;
+        float floodCount = 0.0f;
+        float timeSinceLastFloodIncrease = 0.0f;
+        float timeBetweenFloodIncreases = 1.0f;
+        float floodIncreaseAmount = 2.0f;
+
+        const int MaxWaterHeight = 244;
+        const int WaterWidth = 297;
+
+        Vector2 waterOverlayStart = new Vector2(85, 245);
+        Vector2 waterPosition = new Vector2(478, 338);
+
+        int currentLevel = 0;
+        int linesCompletedThisLevel = 0;
+
+        const float floodAccelerationPerLevel = 0.5f;
+
 
         public Game1()
         {
@@ -70,7 +95,7 @@ namespace Flood_Control
             backgroundScreen = Content.Load<Texture2D>(@"Textures\Background");
             playingPieces = Content.Load<Texture2D>(@"Textures\Tile_Sheet");
             titleScreen = Content.Load<Texture2D>(@"Textures\TitleScreen");
-
+            pericles36Font = Content.Load<SpriteFont>(@"Fonts\Pericles36");
         }
 
         /// <summary>
@@ -100,31 +125,82 @@ namespace Flood_Control
                         gameBoard.ClearBoard();
                         gameBoard.GenerateNewPieces(false);
                         playerScore = 0;
+                        currentLevel = 0;
+                        floodIncreaseAmount = 1.0f;
+                        StartNewLevel();
                         gameState = GameStates.Playing;
                     }
                     break;
                 case GameStates.Playing:
                     timeSinceLastInput += (float)gameTime.ElapsedGameTime.TotalSeconds;
 
-                    if (timeSinceLastInput >= MinTimeSinceLastInput)
+                    timeSinceLastFloodIncrease += (float) gameTime.ElapsedGameTime.TotalSeconds;
+                    if (timeSinceLastFloodIncrease >= timeBetweenFloodIncreases)
                     {
-                        HandleMouseInput(Mouse.GetState());
+                        floodCount += floodIncreaseAmount;
+                        timeSinceLastFloodIncrease = 0.0f;
+                        if (floodCount >= MaxFloodCounter)
+                        {
+                            gameOverTimer = 8.0f;
+                            gameState = GameStates.GameOver;
+                        }
                     }
 
-                    gameBoard.ResetWater();
-
-                    for (int y = 0; y < GameBoard.GameBoardHeight; y++)
+                    if (gameBoard.ArePiecesAnimating())
                     {
-                        CheckScoringChain(gameBoard.GetWaterChain(y));
+                        gameBoard.UpdateAnimatedPieces();
                     }
+                    else
+                    {
+                        gameBoard.ResetWater();
 
-                    gameBoard.GenerateNewPieces(true);
+                        for (int y = 0; y < GameBoard.GameBoardHeight; y++)
+                        {
+                            CheckScoringChain(gameBoard.GetWaterChain(y));
+                        }
 
+                        gameBoard.GenerateNewPieces(true);
+
+                        if (timeSinceLastInput >= MinTimeSinceLastInput)
+                        {
+                            HandleMouseInput(Mouse.GetState());
+                        }
+                    }
+                    UpdateScoreZooms();
+                    break;
+                case GameStates.GameOver:
+                    gameOverTimer -= (float)gameTime.ElapsedGameTime.TotalSeconds;
+                    if (gameOverTimer <= 0)
+                    {
+                        gameState = GameStates.TitleScreen;
+                    }
                     break;
             }
 
-
             base.Update(gameTime);
+        }
+
+        private void UpdateScoreZooms()
+        {
+            int dequequeCounter = 0;
+            foreach (ScoreZoom zoom in ScoreZooms)
+            {
+                zoom.Update();
+                if (zoom.isCompleted)
+                    dequequeCounter++;
+            }
+            for (int d = 0; d < dequequeCounter; d++)
+                ScoreZooms.Dequeue();
+        }
+
+        private void StartNewLevel()
+        {
+            currentLevel++;
+            floodCount = 0;
+            linesCompletedThisLevel = 0;
+            floodIncreaseAmount += floodAccelerationPerLevel;
+            gameBoard.ClearBoard();
+            gameBoard.GenerateNewPieces(false);
         }
 
         /// <summary>
@@ -141,7 +217,7 @@ namespace Flood_Control
                 spriteBatch.Draw(titleScreen, new Rectangle(0, 0, this.Window.ClientBounds.Width, this.Window.ClientBounds.Height), Color.White);
                 spriteBatch.End();
             }
-            else if (gameState == GameStates.Playing)
+            else if ((gameState == GameStates.Playing) || (gameState == GameStates.GameOver))
             {
                 spriteBatch.Begin();
                 spriteBatch.Draw(backgroundScreen, new Rectangle(0, 0, this.Window.ClientBounds.Width, this.Window.ClientBounds.Height), Color.White);
@@ -152,16 +228,84 @@ namespace Flood_Control
                         int pixelX = (int)gameBoardDisplayOrigin.X + (x * GamePiece.PieceWidth);
                         int pixelY = (int)gameBoardDisplayOrigin.Y + (y * GamePiece.PieceHeight);
 
-                        spriteBatch.Draw(playingPieces, new Rectangle(pixelX, pixelY, GamePiece.PieceWidth, GamePiece.PieceHeight), EmptyPiece, Color.White);
+                        DrawEmptyPiece(pixelX, pixelY);
 
-                        spriteBatch.Draw(playingPieces, new Rectangle(pixelX, pixelY, GamePiece.PieceWidth, GamePiece.PieceHeight), gameBoard.GetSourceRectangle(x,y), Color.White);
+                        bool pieceDraw = false;
+
+                        string positionName = x.ToString() + "_" + y.ToString();
+
+                        if (gameBoard.rotatingPieces.ContainsKey(positionName))
+                        {
+                            DrawRotatingPiece(pixelX, pixelY, positionName);
+                            pieceDraw = true;
+                        }
+                        if (gameBoard.fadingPieces.ContainsKey(positionName))
+                        {
+                            DrawFadingPiece(pixelX, pixelY, positionName);
+                            pieceDraw = true;
+                        }
+                        if (gameBoard.fallingPieces.ContainsKey(positionName))
+                        {
+                            DrawFallingPiece(pixelX, pixelY, positionName);
+                            pieceDraw = true;
+                        }
+
+                        if (!pieceDraw)
+                        {
+                            DrawStandardPiece(x, y, pixelX, pixelY);
+                        }
                     }
+                
+                spriteBatch.DrawString(pericles36Font, playerScore.ToString(), scorePosition, Color.Black);
+                spriteBatch.DrawString(pericles36Font, currentLevel.ToString(), levelTextPosition, Color.Black);
 
-                this.Window.Title = playerScore.ToString();
+                int waterHeight = (int)(MaxWaterHeight * (floodCount / 100));
+
+                spriteBatch.Draw(backgroundScreen, new Rectangle((int)waterPosition.X, (int)waterPosition.Y + (MaxWaterHeight - waterHeight), WaterWidth, waterHeight),
+                                                   new Rectangle((int)waterOverlayStart.X, (int)waterOverlayStart.Y + (MaxWaterHeight - waterHeight), WaterWidth, waterHeight),
+                                                   new Color(255, 255, 255, 180));
+                foreach (ScoreZoom zoom in ScoreZooms)
+                {
+                    spriteBatch.DrawString(pericles36Font, zoom.Text, new Vector2(this.Window.ClientBounds.Width / 2, this.Window.ClientBounds.Height / 2), zoom.DrawColor,
+                        0.0f, new Vector2(pericles36Font.MeasureString(zoom.Text).X / 2, pericles36Font.MeasureString(zoom.Text).Y / 2), zoom.Scale, SpriteEffects.None, 0.0f);
+                }
+
+                spriteBatch.End();
+            }
+
+            if (gameState == GameStates.GameOver)
+            {
+                spriteBatch.Begin();
+                spriteBatch.DrawString(pericles36Font, "G A M E  O V E R !", gameOverLocation, Color.Yellow);
                 spriteBatch.End();
             }
 
             base.Draw(gameTime);
+        }
+
+        private void DrawEmptyPiece(int pixelX, int pixelY)
+        {
+            spriteBatch.Draw(playingPieces, new Rectangle(pixelX, pixelY, GamePiece.PieceWidth, GamePiece.PieceHeight), EmptyPiece, Color.White);
+        }
+
+        private void DrawStandardPiece(int x, int y, int pixelX, int pixelY)
+        {
+            spriteBatch.Draw(playingPieces, new Rectangle(pixelX, pixelY, GamePiece.PieceWidth, GamePiece.PieceHeight), gameBoard.GetSourceRectangle(x, y), Color.White);
+        }
+
+        private void DrawFallingPiece(int pixelX, int pixelY, string positionName)
+        {
+            spriteBatch.Draw(playingPieces, new Rectangle(pixelX, pixelY - gameBoard.fallingPieces[positionName].VerticalOffset, GamePiece.PieceWidth, GamePiece.PieceHeight), gameBoard.fallingPieces[positionName].GetSourceRect(), Color.White);
+        }
+
+        private void DrawFadingPiece(int pixelX, int pixelY, string positionName)
+        {
+            spriteBatch.Draw(playingPieces, new Rectangle(pixelX, pixelY, GamePiece.PieceWidth, GamePiece.PieceHeight), gameBoard.fadingPieces[positionName].GetSourceRect(), Color.White*gameBoard.fadingPieces[positionName].alphaLevel);
+        }
+
+        private void DrawRotatingPiece(int pixelX, int pixelY, string positionName)
+        {
+            spriteBatch.Draw(playingPieces, new Rectangle(pixelX + (GamePiece.PieceWidth/2), pixelY+(GamePiece.PieceHeight/2), GamePiece.PieceWidth, GamePiece.PieceHeight), gameBoard.rotatingPieces[positionName].GetSourceRect(), Color.White, gameBoard.rotatingPieces[positionName].RotationAmount, new Vector2(GamePiece.PieceWidth/2, GamePiece.PieceHeight/2), SpriteEffects.None, 0.0f);
         }
 
         private int DetermineScore(int SquareCount)
@@ -180,10 +324,19 @@ namespace Flood_Control
                     if (gameBoard.HasConnector((int)LastPipe.X, (int)LastPipe.Y, "Right"))
                     {
                         playerScore += DetermineScore(WaterChain.Count);
+                        linesCompletedThisLevel++;
+                        floodCount = MathHelper.Clamp(floodCount - (DetermineScore(WaterChain.Count) / 10), 0.0f, 100.0f);
+                        ScoreZooms.Enqueue(new ScoreZoom("+" + DetermineScore(WaterChain.Count).ToString(), new Color(1.0f, 0.0f, 0.0f, 0.4f)));
 
                         foreach (Vector2 ScoringSquare in WaterChain)
                         {
+                            gameBoard.AddFadingPiece((int)ScoringSquare.X,(int)ScoringSquare.Y,gameBoard.GetSquare((int)ScoringSquare.X,(int)ScoringSquare.Y));
                             gameBoard.SetSquare((int)ScoringSquare.X, (int)ScoringSquare.Y, "Empty");
+                        }
+
+                        if (linesCompletedThisLevel >= 10)
+                        {
+                            StartNewLevel();
                         }
                     }
                 }
@@ -199,12 +352,14 @@ namespace Flood_Control
             {
                 if (mouseState.LeftButton == ButtonState.Pressed)
                 {
+                    gameBoard.AddRotatingPiece(x, y, gameBoard.GetSquare(x, y), false);
                     gameBoard.RotatePiece(x, y, false);
                     timeSinceLastInput = 0.0f;
                 }
 
                 if (mouseState.RightButton == ButtonState.Pressed)
                 {
+                    gameBoard.AddRotatingPiece(x, y, gameBoard.GetSquare(x, y), true);
                     gameBoard.RotatePiece(x, y, true);
                     timeSinceLastInput = 0.0f;
                 }
