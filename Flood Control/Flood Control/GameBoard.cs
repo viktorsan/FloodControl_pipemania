@@ -33,9 +33,9 @@ namespace Flood_Control
                     boardSquares[x, y] = new GamePiece("Empty");
         }
 
-        public void AddFallingPiece(int X, int Y, string PieceName, int VerticalOffset)
+        public void AddFallingPiece(int X, int Y, string PieceName, string suffix, int VerticalOffset)
         {
-            fallingPieces[X.ToString() + "_" + Y.ToString()] = new FallingPiece(PieceName, VerticalOffset);
+            fallingPieces[X.ToString() + "_" + Y.ToString()] = new FallingPiece(PieceName, VerticalOffset, suffix);
         }
 
         public void AddRotatingPiece(int X, int Y, string PieceName, bool clockwise)
@@ -133,9 +133,14 @@ namespace Flood_Control
             return boardSquares[x, y].PieceType;
         }
 
-        public void SetSquare(int x, int y, string pieceName)
+        public string GetSuffix(int x, int y)
         {
-            boardSquares[x, y].SetPiece(pieceName);
+            return boardSquares[x, y].Suffix;
+        }
+
+        public void SetSquare(int x, int y, string pieceName, string suffix)
+        {
+            boardSquares[x, y].SetPiece(pieceName,suffix);
         }
 
         public bool HasConnector(int x, int y, string direction)
@@ -143,9 +148,9 @@ namespace Flood_Control
             return boardSquares[x, y].HasConnector(direction);
         }
 
-        public void RandomPiece(int x, int y)
+        public void RandomPiece(int x, int y, string suffix)
         {
-            boardSquares[x, y].SetPiece(GamePiece.PieceTypes[rand.Next(0, GamePiece.MaxPlayablePieceIndex + 1)]);
+            boardSquares[x, y].SetPiece(GamePiece.PieceTypes[rand.Next(0, GamePiece.MaxPlayablePieceIndex + 1)],suffix);
         }
 
         public void FillFromAbove(int x, int y)
@@ -156,9 +161,10 @@ namespace Flood_Control
             {
                 if (GetSquare(x,rowLookup) != "Empty")
                 {
-                    SetSquare(x,y,GetSquare(x,rowLookup));
-                    SetSquare(x, rowLookup, "Empty");
-                    AddFallingPiece(x,y,GetSquare(x,y),GamePiece.PieceHeight * (y-rowLookup));
+
+                    SetSquare(x,y,GetSquare(x,rowLookup),GetSuffix(x,rowLookup));
+                    SetSquare(x, rowLookup, "Empty","");
+                    AddFallingPiece(x,y,GetSquare(x,y),GetSuffix(x,y),GamePiece.PieceHeight * (y-rowLookup));
                     rowLookup = -1;
                 }
                 rowLookup--;
@@ -187,8 +193,17 @@ namespace Flood_Control
                 {
                     if (GetSquare(x, y) == "Empty")
                     {
-                        RandomPiece(x, y);
-                        AddFallingPiece(x,y,GetSquare(x,y),GamePiece.PieceHeight * GameBoardHeight);
+                        if (rand.Next() % 20 == 0)
+                        {
+                            RandomPiece(x, y,"F");
+                            AddFallingPiece(x, y, GetSquare(x, y), "F", GamePiece.PieceHeight * GameBoardHeight);
+                        }
+                        else
+                        {
+                            RandomPiece(x, y,"");
+                            AddFallingPiece(x, y, GetSquare(x, y), "", GamePiece.PieceHeight * GameBoardHeight);
+                        }
+                        
                     }
                 }
             }
@@ -234,6 +249,14 @@ namespace Flood_Control
             WaterTracker.Clear();
             PropagateWater(0, y, "Left");
             return WaterTracker;
+        }
+
+        public bool isFixed(int x, int y)
+        {
+            if (boardSquares[x, y].Suffix.Contains("F"))
+                return true;
+            else
+                return false;
         }
     }
 }

@@ -33,7 +33,7 @@ namespace Flood_Control
 
         int playerScore = 0;
 
-        enum GameStates { TitleScreen, Playing, GameOver };
+        enum GameStates { TitleScreen, Playing, GameOver, Paused };
         GameStates gameState = GameStates.TitleScreen;
 
         Rectangle EmptyPiece = new Rectangle(1, 247, 40, 40);
@@ -59,6 +59,7 @@ namespace Flood_Control
 
         const float floodAccelerationPerLevel = 0.5f;
 
+        bool toPause;
 
         public Game1()
         {
@@ -131,7 +132,28 @@ namespace Flood_Control
                         gameState = GameStates.Playing;
                     }
                     break;
+                case GameStates.Paused:
+                    if ((Keyboard.GetState().IsKeyDown(Keys.Space)) && !toPause)
+                    {
+                        gameState = GameStates.Playing;
+                    }
+                    if (Keyboard.GetState().IsKeyUp(Keys.Space))
+                    {
+                        toPause = false;
+                    }
+                    break;
                 case GameStates.Playing:
+                    if ((Keyboard.GetState().IsKeyDown(Keys.Space)) && toPause)
+                    {
+                        gameState = GameStates.Paused;
+                        toPause = true;
+                    }
+                    if (Keyboard.GetState().IsKeyUp(Keys.Space))
+                    {
+                        toPause = true;
+                    }
+
+        
                     timeSinceLastInput += (float)gameTime.ElapsedGameTime.TotalSeconds;
 
                     timeSinceLastFloodIncrease += (float) gameTime.ElapsedGameTime.TotalSeconds;
@@ -217,7 +239,7 @@ namespace Flood_Control
                 spriteBatch.Draw(titleScreen, new Rectangle(0, 0, this.Window.ClientBounds.Width, this.Window.ClientBounds.Height), Color.White);
                 spriteBatch.End();
             }
-            else if ((gameState == GameStates.Playing) || (gameState == GameStates.GameOver))
+            else if ((gameState == GameStates.Playing) || (gameState == GameStates.GameOver) || (gameState == GameStates.Paused))
             {
                 spriteBatch.Begin();
                 spriteBatch.Draw(backgroundScreen, new Rectangle(0, 0, this.Window.ClientBounds.Width, this.Window.ClientBounds.Height), Color.White);
@@ -230,32 +252,35 @@ namespace Flood_Control
 
                         DrawEmptyPiece(pixelX, pixelY);
 
-                        bool pieceDraw = false;
+                        if (!(gameState == GameStates.Paused))
+                        {
+                            bool pieceDraw = false;
 
-                        string positionName = x.ToString() + "_" + y.ToString();
+                            string positionName = x.ToString() + "_" + y.ToString();
 
-                        if (gameBoard.rotatingPieces.ContainsKey(positionName))
-                        {
-                            DrawRotatingPiece(pixelX, pixelY, positionName);
-                            pieceDraw = true;
-                        }
-                        if (gameBoard.fadingPieces.ContainsKey(positionName))
-                        {
-                            DrawFadingPiece(pixelX, pixelY, positionName);
-                            pieceDraw = true;
-                        }
-                        if (gameBoard.fallingPieces.ContainsKey(positionName))
-                        {
-                            DrawFallingPiece(pixelX, pixelY, positionName);
-                            pieceDraw = true;
-                        }
+                            if (gameBoard.rotatingPieces.ContainsKey(positionName))
+                            {
+                                DrawRotatingPiece(pixelX, pixelY, positionName);
+                                pieceDraw = true;
+                            }
+                            if (gameBoard.fadingPieces.ContainsKey(positionName))
+                            {
+                                DrawFadingPiece(pixelX, pixelY, positionName);
+                                pieceDraw = true;
+                            }
+                            if (gameBoard.fallingPieces.ContainsKey(positionName))
+                            {
+                                DrawFallingPiece(pixelX, pixelY, positionName);
+                                pieceDraw = true;
+                            }
 
-                        if (!pieceDraw)
-                        {
-                            DrawStandardPiece(x, y, pixelX, pixelY);
+                            if (!pieceDraw)
+                            {
+                                DrawStandardPiece(x, y, pixelX, pixelY);
+                            }
                         }
                     }
-                
+
                 spriteBatch.DrawString(pericles36Font, playerScore.ToString(), scorePosition, Color.Black);
                 spriteBatch.DrawString(pericles36Font, currentLevel.ToString(), levelTextPosition, Color.Black);
 
@@ -331,7 +356,7 @@ namespace Flood_Control
                         foreach (Vector2 ScoringSquare in WaterChain)
                         {
                             gameBoard.AddFadingPiece((int)ScoringSquare.X,(int)ScoringSquare.Y,gameBoard.GetSquare((int)ScoringSquare.X,(int)ScoringSquare.Y));
-                            gameBoard.SetSquare((int)ScoringSquare.X, (int)ScoringSquare.Y, "Empty");
+                            gameBoard.SetSquare((int)ScoringSquare.X, (int)ScoringSquare.Y, "Empty","");
                         }
 
                         if (linesCompletedThisLevel >= 10)
@@ -352,16 +377,22 @@ namespace Flood_Control
             {
                 if (mouseState.LeftButton == ButtonState.Pressed)
                 {
-                    gameBoard.AddRotatingPiece(x, y, gameBoard.GetSquare(x, y), false);
-                    gameBoard.RotatePiece(x, y, false);
-                    timeSinceLastInput = 0.0f;
+                    if (!gameBoard.isFixed(x, y))
+                    {
+                        gameBoard.AddRotatingPiece(x, y, gameBoard.GetSquare(x, y), false);
+                        gameBoard.RotatePiece(x, y, false);
+                        timeSinceLastInput = 0.0f;
+                    }
                 }
 
                 if (mouseState.RightButton == ButtonState.Pressed)
                 {
-                    gameBoard.AddRotatingPiece(x, y, gameBoard.GetSquare(x, y), true);
-                    gameBoard.RotatePiece(x, y, true);
-                    timeSinceLastInput = 0.0f;
+                    if (!gameBoard.isFixed(x, y))
+                    {
+                        gameBoard.AddRotatingPiece(x, y, gameBoard.GetSquare(x, y), true);
+                        gameBoard.RotatePiece(x, y, true);
+                        timeSinceLastInput = 0.0f;
+                    }
                 }
             }
         }

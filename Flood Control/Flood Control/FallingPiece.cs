@@ -11,11 +11,12 @@ namespace Flood_Control
         public int VerticalOffset;
         public static int fallRate = 5;
 
-        public FallingPiece(string pieceType, int verticalOffset)
-            : base(pieceType)
+        public FallingPiece(string pieceType, int verticalOffset, String suffix)
+            : base(pieceType,suffix)
         {
             VerticalOffset = verticalOffset;
         }
+
 
         public void UpdatePiece()
         {

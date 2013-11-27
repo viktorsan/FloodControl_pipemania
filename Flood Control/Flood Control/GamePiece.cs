@@ -132,6 +132,8 @@ namespace Flood_Control
 
             if (pieceSuffix.Contains("W"))
                 x += PieceWidth + texturePaddingX;
+            if (pieceSuffix.Contains("F"))
+                x += ((PieceWidth + texturePaddingX) * 2);
             y += (Array.IndexOf(PieceTypes, pieceType) * (PieceHeight + texturePaddingY));
 
             return new Rectangle(x, y, PieceWidth, PieceHeight);
